@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/RomanKovalev007/url-shortner/internal/domain"
 	inmemory "github.com/RomanKovalev007/url-shortner/internal/repository/in-memory"
@@ -15,7 +16,7 @@ func TestSaveAlias(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("saves new url and returns it", func(t *testing.T) {
-		s := inmemory.New()
+		s := inmemory.New(0)
 
 		got, created, err := s.SaveAlias(ctx, "abc123_XYZ", "https://example.com")
 		if err != nil {
@@ -30,7 +31,7 @@ func TestSaveAlias(t *testing.T) {
 	})
 
 	t.Run("returns existing record on duplicate original", func(t *testing.T) {
-		s := inmemory.New()
+		s := inmemory.New(0)
 		first, _, err := s.SaveAlias(ctx, "firstAlias_", "https://example.com")
 		if err != nil {
 			t.Fatalf("first save: %v", err)
@@ -49,7 +50,7 @@ func TestSaveAlias(t *testing.T) {
 	})
 
 	t.Run("returns ErrAliasAlreadyExists on alias collision", func(t *testing.T) {
-		s := inmemory.New()
+		s := inmemory.New(0)
 		if _, _, err := s.SaveAlias(ctx, "collidAlias", "https://first.com"); err != nil {
 			t.Fatalf("first save: %v", err)
 		}
@@ -65,7 +66,7 @@ func TestGetByAlias(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("returns url for known alias", func(t *testing.T) {
-		s := inmemory.New()
+		s := inmemory.New(0)
 		if _, _, err := s.SaveAlias(ctx, "knownAlias_", "https://example.com"); err != nil {
 			t.Fatalf("save: %v", err)
 		}
@@ -80,7 +81,7 @@ func TestGetByAlias(t *testing.T) {
 	})
 
 	t.Run("returns ErrNotFound for unknown alias", func(t *testing.T) {
-		s := inmemory.New()
+		s := inmemory.New(0)
 		_, err := s.GetByAlias(ctx, "doesNotExist")
 		if !errors.Is(err, domain.ErrNotFound) {
 			t.Errorf("got %v, want ErrNotFound", err)
@@ -88,9 +89,52 @@ func TestGetByAlias(t *testing.T) {
 	})
 }
 
+func TestTTL_InactiveEntryIsCleanedUp(t *testing.T) {
+	ctx := t.Context()
+
+	const ttl = 50 * time.Millisecond
+	s := inmemory.New(ttl)
+	s.StartCleanup(ctx, 10*time.Millisecond)
+
+	if _, _, err := s.SaveAlias(ctx, "ttlAlias__", "https://example.com"); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	// wait longer than TTL + cleanup interval
+	time.Sleep(100 * time.Millisecond)
+
+	if _, err := s.GetByAlias(ctx, "ttlAlias__"); !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("expected ErrNotFound after cleanup, got %v", err)
+	}
+}
+
+func TestTTL_ActiveEntryIsKeptAlive(t *testing.T) {
+	ctx := t.Context()
+
+	const ttl = 50 * time.Millisecond
+	s := inmemory.New(ttl)
+	s.StartCleanup(ctx, 10*time.Millisecond)
+
+	if _, _, err := s.SaveAlias(ctx, "ttlAlias__", "https://example.com"); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	for range 5 {
+		time.Sleep(20 * time.Millisecond)
+		if _, err := s.GetByAlias(ctx, "ttlAlias__"); err != nil {
+			t.Fatalf("entry should stay alive while being accessed: %v", err)
+		}
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	if _, err := s.GetByAlias(ctx, "ttlAlias__"); err != nil {
+		t.Errorf("recently accessed entry should still be alive: %v", err)
+	}
+}
+
 func TestConcurrentSaveAlias(t *testing.T) {
 	const n = 100
-	s := inmemory.New()
+	s := inmemory.New(0)
 	ctx := context.Background()
 
 	type entry struct {

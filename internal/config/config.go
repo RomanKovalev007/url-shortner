@@ -18,6 +18,12 @@ type Config struct {
 	LogLevel string `env:"LOG_LEVEL"  env-default:"info"`
 	HTTP     HTTP
 	Postgres PostgresConfig
+	InMemory InMemoryConfig
+}
+
+type InMemoryConfig struct {
+	TTL             time.Duration `env:"INMEMORY_TTL"              env-default:"0"`
+	CleanupInterval time.Duration `env:"INMEMORY_CLEANUP_INTERVAL" env-default:"1h"`
 }
 
 type HTTP struct {

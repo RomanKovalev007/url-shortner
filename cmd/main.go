@@ -56,7 +56,9 @@ func main() {
 		repo = postgresrepo.New(pool)
 		db = pool
 	case config.FlagInMemory:
-		repo = inmemory.New()
+		store := inmemory.New(cfg.InMemory.TTL)
+		store.StartCleanup(ctx, cfg.InMemory.CleanupInterval)
+		repo = store
 	default:
 		log.Fatalf("unknown db flag: %s", cfg.DbFlag)
 	}
