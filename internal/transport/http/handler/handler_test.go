@@ -67,6 +67,23 @@ func TestShorten_Success(t *testing.T) {
 	}
 }
 
+func TestShorten_ExistingURL(t *testing.T) {
+	router := newRouter(&mockService{
+		shorten: func(_ context.Context, original string) (domain.URL, bool, error) {
+			return fixedURL("existAlias_", original), false, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(`{"url":"https://example.com"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("got status %d, want %d (existing url should return 200)", w.Code, http.StatusOK)
+	}
+}
+
 func TestShorten_InvalidJSON(t *testing.T) {
 	router := newRouter(&mockService{})
 

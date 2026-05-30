@@ -17,9 +17,12 @@ func TestSaveAlias(t *testing.T) {
 	t.Run("saves new url and returns it", func(t *testing.T) {
 		s := inmemory.New()
 
-		got, _, err := s.SaveAlias(ctx, "abc123_XYZ", "https://example.com")
+		got, created, err := s.SaveAlias(ctx, "abc123_XYZ", "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if !created {
+			t.Error("expected created=true for new url")
 		}
 		if got.Alias != "abc123_XYZ" || got.Original != "https://example.com" {
 			t.Errorf("unexpected result: %+v", got)
@@ -33,9 +36,12 @@ func TestSaveAlias(t *testing.T) {
 			t.Fatalf("first save: %v", err)
 		}
 
-		got, _, err := s.SaveAlias(ctx, "otherAlias_", "https://example.com")
+		got, created, err := s.SaveAlias(ctx, "otherAlias_", "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if created {
+			t.Error("expected created=false for duplicate original")
 		}
 		if got.Alias != first.Alias {
 			t.Errorf("got alias %q, want existing %q", got.Alias, first.Alias)
