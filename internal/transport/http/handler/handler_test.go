@@ -30,8 +30,21 @@ func (m *mockService) GetOriginal(ctx context.Context, alias string) (domain.URL
 	return m.getOriginal(ctx, alias)
 }
 
+type mockPinger struct {
+	pingErr error
+}
+
+func (m *mockPinger) Ping(_ context.Context) error {
+	return m.pingErr
+}
+
 func newRouter(svc *mockService) http.Handler {
-	h := httphandler.NewHandler(svc, "http://short.ly")
+	h := httphandler.NewHandler(svc, "http://short.ly", nil)
+	return httptransport.NewRouter(h)
+}
+
+func newRouterWithDB(svc *mockService, p *mockPinger) http.Handler {
+	h := httphandler.NewHandler(svc, "http://short.ly", p)
 	return httptransport.NewRouter(h)
 }
 
@@ -214,5 +227,37 @@ func TestHealth(t *testing.T) {
 	}
 	if resp["status"] != "ok" {
 		t.Errorf("got status %q, want %q", resp["status"], "ok")
+	}
+}
+
+func TestHealth_DBOk(t *testing.T) {
+	router := newRouterWithDB(&mockService{}, &mockPinger{pingErr: nil})
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("got status %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHealth_DBUnavailable(t *testing.T) {
+	router := newRouterWithDB(&mockService{}, &mockPinger{pingErr: errors.New("connection refused")})
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("got status %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["status"] != "unavailable" {
+		t.Errorf("got status %q, want %q", resp["status"], "unavailable")
 	}
 }

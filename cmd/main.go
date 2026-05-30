@@ -34,6 +34,7 @@ func main() {
 	defer cancel()
 
 	var repo service.UrlRepo
+	var db httphandler.Pinger
 	switch cfg.DbFlag {
 	case config.FlagPostgres:
 		poolCfg := postgres.PoolConfig{
@@ -53,14 +54,15 @@ func main() {
 		}
 
 		repo = postgresrepo.New(pool)
+		db = pool
 	case config.FlagInMemory:
 		repo = inmemory.New()
 	default:
 		log.Fatalf("unknown db flag: %s", cfg.DbFlag)
 	}
-	
+
 	svc := service.NewService(repo)
-	h := httphandler.NewHandler(svc, cfg.BaseURL)
+	h := httphandler.NewHandler(svc, cfg.BaseURL, db)
 	router := httptransport.NewRouter(h)
 
 	srv := &http.Server{

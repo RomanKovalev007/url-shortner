@@ -15,13 +15,18 @@ type urlService interface {
 	GetOriginal(ctx context.Context, alias string) (domain.URL, error)
 }
 
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
+
 type Handler struct {
 	service urlService
 	baseURL string
+	db      Pinger
 }
 
-func NewHandler(service urlService, baseURL string) *Handler {
-	return &Handler{service: service, baseURL: baseURL}
+func NewHandler(service urlService, baseURL string, db Pinger) *Handler {
+	return &Handler{service: service, baseURL: baseURL, db: db}
 }
 
 func (h *Handler) Shorten(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +76,13 @@ func (h *Handler) RedirectToOriginal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+	if h.db != nil {
+		if err := h.db.Ping(r.Context()); err != nil {
+			slog.ErrorContext(r.Context(), "db ping failed", "error", err)
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
