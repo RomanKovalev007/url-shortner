@@ -11,7 +11,7 @@ import (
 )
 
 type urlService interface {
-	Shorten(ctx context.Context, original string) (domain.URL, error)
+	Shorten(ctx context.Context, original string) (domain.URL, bool, error)
 	GetOriginal(ctx context.Context, alias string) (domain.URL, error)
 }
 
@@ -36,14 +36,18 @@ func (h *Handler) Shorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.service.Shorten(r.Context(), req.URL)
+	res, created, err := h.service.Shorten(r.Context(), req.URL)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "failed to shorten url", "error", err, "url", req.URL)
 		writeError(w, http.StatusInternalServerError, "failed to shorten url")
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, shortenResponse{
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	writeJSON(w, status, shortenResponse{
 		Alias:    res.Alias,
 		ShortURL: h.baseURL + "/" + res.Alias,
 	})

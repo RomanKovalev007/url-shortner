@@ -18,11 +18,11 @@ import (
 )
 
 type mockService struct {
-	shorten     func(ctx context.Context, original string) (domain.URL, error)
+	shorten     func(ctx context.Context, original string) (domain.URL, bool, error)
 	getOriginal func(ctx context.Context, alias string) (domain.URL, error)
 }
 
-func (m *mockService) Shorten(ctx context.Context, original string) (domain.URL, error) {
+func (m *mockService) Shorten(ctx context.Context, original string) (domain.URL, bool, error) {
 	return m.shorten(ctx, original)
 }
 
@@ -41,8 +41,8 @@ func fixedURL(alias, original string) domain.URL {
 
 func TestShorten_Success(t *testing.T) {
 	router := newRouter(&mockService{
-		shorten: func(_ context.Context, original string) (domain.URL, error) {
-			return fixedURL("abc123_XYZ", original), nil
+		shorten: func(_ context.Context, original string) (domain.URL, bool, error) {
+			return fixedURL("abc123_XYZ", original), true, nil
 		},
 	})
 
@@ -115,8 +115,8 @@ func TestShorten_InvalidURLScheme(t *testing.T) {
 
 func TestShorten_ServiceError(t *testing.T) {
 	router := newRouter(&mockService{
-		shorten: func(_ context.Context, _ string) (domain.URL, error) {
-			return domain.URL{}, errors.New("internal error")
+		shorten: func(_ context.Context, _ string) (domain.URL, bool, error) {
+			return domain.URL{}, false, errors.New("internal error")
 		},
 	})
 

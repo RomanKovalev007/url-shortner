@@ -17,7 +17,7 @@ func TestSaveAlias(t *testing.T) {
 	t.Run("saves new url and returns it", func(t *testing.T) {
 		s := inmemory.New()
 
-		got, err := s.SaveAlias(ctx, "abc123_XYZ", "https://example.com")
+		got, _, err := s.SaveAlias(ctx, "abc123_XYZ", "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -28,12 +28,12 @@ func TestSaveAlias(t *testing.T) {
 
 	t.Run("returns existing record on duplicate original", func(t *testing.T) {
 		s := inmemory.New()
-		first, err := s.SaveAlias(ctx, "firstAlias_", "https://example.com")
+		first, _, err := s.SaveAlias(ctx, "firstAlias_", "https://example.com")
 		if err != nil {
 			t.Fatalf("first save: %v", err)
 		}
 
-		got, err := s.SaveAlias(ctx, "otherAlias_", "https://example.com")
+		got, _, err := s.SaveAlias(ctx, "otherAlias_", "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -44,11 +44,11 @@ func TestSaveAlias(t *testing.T) {
 
 	t.Run("returns ErrAliasAlreadyExists on alias collision", func(t *testing.T) {
 		s := inmemory.New()
-		if _, err := s.SaveAlias(ctx, "collidAlias", "https://first.com"); err != nil {
+		if _, _, err := s.SaveAlias(ctx, "collidAlias", "https://first.com"); err != nil {
 			t.Fatalf("first save: %v", err)
 		}
 
-		_, err := s.SaveAlias(ctx, "collidAlias", "https://second.com")
+		_, _, err := s.SaveAlias(ctx, "collidAlias", "https://second.com")
 		if !errors.Is(err, domain.ErrAliasAlreadyExists) {
 			t.Errorf("got %v, want ErrAliasAlreadyExists", err)
 		}
@@ -60,7 +60,7 @@ func TestGetByAlias(t *testing.T) {
 
 	t.Run("returns url for known alias", func(t *testing.T) {
 		s := inmemory.New()
-		if _, err := s.SaveAlias(ctx, "knownAlias_", "https://example.com"); err != nil {
+		if _, _, err := s.SaveAlias(ctx, "knownAlias_", "https://example.com"); err != nil {
 			t.Fatalf("save: %v", err)
 		}
 
@@ -104,7 +104,7 @@ func TestConcurrentSaveAlias(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, _ = s.SaveAlias(ctx, e.alias, e.original)
+			_, _, _ = s.SaveAlias(ctx, e.alias, e.original)
 		}()
 	}
 	wg.Wait()

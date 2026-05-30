@@ -16,11 +16,11 @@ import (
 const aliasAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 type mockRepo struct {
-	saveAlias  func(ctx context.Context, alias, original string) (domain.URL, error)
+	saveAlias  func(ctx context.Context, alias, original string) (domain.URL, bool, error)
 	getByAlias func(ctx context.Context, alias string) (domain.URL, error)
 }
 
-func (m *mockRepo) SaveAlias(ctx context.Context, alias, original string) (domain.URL, error) {
+func (m *mockRepo) SaveAlias(ctx context.Context, alias, original string) (domain.URL, bool, error) {
 	return m.saveAlias(ctx, alias, original)
 }
 
@@ -42,12 +42,12 @@ func TestShorten(t *testing.T) {
 
 	t.Run("returns url on success", func(t *testing.T) {
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, alias, original string) (domain.URL, error) {
-				return fixedURL(alias, original), nil
+			saveAlias: func(_ context.Context, alias, original string) (domain.URL, bool, error) {
+				return fixedURL(alias, original), true, nil
 			},
 		})
 
-		got, err := svc.Shorten(ctx, "https://example.com")
+		got, _, err := svc.Shorten(ctx, "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -62,16 +62,16 @@ func TestShorten(t *testing.T) {
 	t.Run("retries on ErrAliasAlreadyExists and succeeds", func(t *testing.T) {
 		calls := 0
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, alias, original string) (domain.URL, error) {
+			saveAlias: func(_ context.Context, alias, original string) (domain.URL, bool, error) {
 				calls++
 				if calls < 3 {
-					return domain.URL{}, domain.ErrAliasAlreadyExists
+					return domain.URL{}, false, domain.ErrAliasAlreadyExists
 				}
-				return fixedURL(alias, original), nil
+				return fixedURL(alias, original), true, nil
 			},
 		})
 
-		_, err := svc.Shorten(ctx, "https://example.com")
+		_, _, err := svc.Shorten(ctx, "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -82,12 +82,12 @@ func TestShorten(t *testing.T) {
 
 	t.Run("returns error after max retries exhausted", func(t *testing.T) {
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, error) {
-				return domain.URL{}, domain.ErrAliasAlreadyExists
+			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, bool, error) {
+				return domain.URL{}, false, domain.ErrAliasAlreadyExists
 			},
 		})
 
-		_, err := svc.Shorten(ctx, "https://example.com")
+		_, _, err := svc.Shorten(ctx, "https://example.com")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -96,12 +96,12 @@ func TestShorten(t *testing.T) {
 	t.Run("returns unexpected repo error", func(t *testing.T) {
 		repoErr := errors.New("db connection lost")
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, error) {
-				return domain.URL{}, repoErr
+			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, bool, error) {
+				return domain.URL{}, false, repoErr
 			},
 		})
 
-		_, err := svc.Shorten(ctx, "https://example.com")
+		_, _, err := svc.Shorten(ctx, "https://example.com")
 		if !errors.Is(err, repoErr) {
 			t.Errorf("got %v, want %v", err, repoErr)
 		}
@@ -110,12 +110,12 @@ func TestShorten(t *testing.T) {
 	t.Run("returns existing url for duplicate original", func(t *testing.T) {
 		existing := fixedURL("existAlias_", "https://example.com")
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, error) {
-				return existing, nil
+			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, bool, error) {
+				return existing, false, nil
 			},
 		})
 
-		got, err := svc.Shorten(ctx, "https://example.com")
+		got, _, err := svc.Shorten(ctx, "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -128,16 +128,16 @@ func TestShorten(t *testing.T) {
 		const maxRetries = 5
 		calls := 0
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, alias, original string) (domain.URL, error) {
+			saveAlias: func(_ context.Context, alias, original string) (domain.URL, bool, error) {
 				calls++
 				if calls < maxRetries {
-					return domain.URL{}, domain.ErrAliasAlreadyExists
+					return domain.URL{}, false, domain.ErrAliasAlreadyExists
 				}
-				return fixedURL(alias, original), nil
+				return fixedURL(alias, original), true, nil
 			},
 		})
 
-		_, err := svc.Shorten(ctx, "https://example.com")
+		_, _, err := svc.Shorten(ctx, "https://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -150,13 +150,13 @@ func TestShorten(t *testing.T) {
 		const maxRetries = 5
 		calls := 0
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, error) {
+			saveAlias: func(_ context.Context, _ string, _ string) (domain.URL, bool, error) {
 				calls++
-				return domain.URL{}, domain.ErrAliasAlreadyExists
+				return domain.URL{}, false, domain.ErrAliasAlreadyExists
 			},
 		})
 
-		if _, err := svc.Shorten(ctx, "https://example.com"); err == nil {
+		if _, _, err := svc.Shorten(ctx, "https://example.com"); err == nil {
 			t.Fatal("expected error, got nil")
 		}
 		if calls != maxRetries {
@@ -166,13 +166,13 @@ func TestShorten(t *testing.T) {
 
 	t.Run("generated alias contains only valid characters", func(t *testing.T) {
 		svc := service.NewService(&mockRepo{
-			saveAlias: func(_ context.Context, alias, original string) (domain.URL, error) {
-				return fixedURL(alias, original), nil
+			saveAlias: func(_ context.Context, alias, original string) (domain.URL, bool, error) {
+				return fixedURL(alias, original), true, nil
 			},
 		})
 
 		for range 50 {
-			got, err := svc.Shorten(ctx, "https://example.com")
+			got, _, err := svc.Shorten(ctx, "https://example.com")
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

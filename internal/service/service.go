@@ -9,7 +9,7 @@ import (
 )
 
 type UrlRepo interface {
-	SaveAlias(ctx context.Context, alias, original string) (domain.URL, error)
+	SaveAlias(ctx context.Context, alias, original string) (domain.URL, bool, error)
 	GetByAlias(ctx context.Context, alias string) (domain.URL, error)
 }
 
@@ -23,19 +23,19 @@ func NewService(urlRepo UrlRepo) *Service {
 
 const maxRetries = 5
 
-func (s *Service) Shorten(ctx context.Context, original string) (domain.URL, error) {
+func (s *Service) Shorten(ctx context.Context, original string) (domain.URL, bool, error) {
 	for range maxRetries {
 		alias := generateAlias()
-		res, err := s.urlRepo.SaveAlias(ctx, alias, original)
+		res, created, err := s.urlRepo.SaveAlias(ctx, alias, original)
 		if err == nil {
-			slog.InfoContext(ctx, "url shortened", "original", original, "alias", res.Alias)
-			return res, nil
+			slog.InfoContext(ctx, "url shortened", "original", original, "alias", res.Alias, "created", created)
+			return res, created, nil
 		}
 		if !errors.Is(err, domain.ErrAliasAlreadyExists) {
-			return domain.URL{}, err
+			return domain.URL{}, false, err
 		}
 	}
-	return domain.URL{}, errors.New("failed to generate unique alias")
+	return domain.URL{}, false, errors.New("failed to generate unique alias")
 }
 
 func (s *Service) GetOriginal(ctx context.Context, alias string) (domain.URL, error) {

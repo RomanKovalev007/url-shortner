@@ -19,7 +19,7 @@ func New(pool *pgxpool.Pool) *Store {
 	return &Store{db: pool}
 }
 
-func (s *Store) SaveAlias(ctx context.Context, alias, original string) (domain.URL, error) {
+func (s *Store) SaveAlias(ctx context.Context, alias, original string) (domain.URL, bool, error) {
 	q := `
 		INSERT INTO urls (alias, original)
 		VALUES ($1, $2)
@@ -36,16 +36,17 @@ func (s *Store) SaveAlias(ctx context.Context, alias, original string) (domain.U
 	); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return domain.URL{}, domain.ErrAliasAlreadyExists
+			return domain.URL{}, false, domain.ErrAliasAlreadyExists
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
-			return s.getByOriginal(ctx, original)
+			existing, err := s.getByOriginal(ctx, original)
+			return existing, false, err
 		}
 
-		return domain.URL{}, err
+		return domain.URL{}, false, err
 	}
 
-	return url, nil
+	return url, true, nil
 }
 
 func (s *Store) GetByAlias(ctx context.Context, alias string) (domain.URL, error) {
