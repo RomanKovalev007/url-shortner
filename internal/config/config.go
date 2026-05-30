@@ -13,7 +13,7 @@ const (
 )
 
 type Config struct {
-	BaseURl  string `env:"BASE_URL"   env-default:"localhost"`
+	BaseURL  string `env:"BASE_URL"   env-default:"localhost"`
 	DbFlag   string `env:"DB_FLAG"    env-required:"true"`
 	LogLevel string `env:"LOG_LEVEL"  env-default:"info"`
 	HTTP     HTTP

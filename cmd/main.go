@@ -60,7 +60,7 @@ func main() {
 	}
 	
 	svc := service.NewService(repo)
-	h := httphandler.NewHandler(svc, cfg.BaseURl)
+	h := httphandler.NewHandler(svc, cfg.BaseURL)
 	router := httptransport.NewRouter(h)
 
 	srv := &http.Server{
