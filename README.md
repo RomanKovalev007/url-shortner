@@ -65,6 +65,54 @@ curl http://localhost:8080/health
 
 Для смены вида хранения данных используется `DB_FLAG` со значениями `postgres` и `in-memory`
 
+## Структура проекта
+
+Проект выстроен в соответствии со слоистой архитектурой и включает в себя 4 слоя: domain, repository, service, transport. Каждый слой взаимодействует с соседним через интерфейс.
+
+```
+.
+├── cmd/
+│   └── main.go                        # Точка входа, сборка зависимостей, graceful shutdown
+├── internal/
+│   ├── config/
+│   │   └── config.go                  # Конфигурация через env-переменные
+│   ├── domain/
+│   │   └── url.go                     # Доменная сущность URL и ошибки репозитория
+│   ├── migrator/
+│   │   └── migrator.go                # Запуск SQL-миграций при старте
+│   ├── repository/
+│   │   ├── in-memory/
+│   │   │   ├── in-memory.go           # In-memory хранилище
+│   │   │   └── in-memory_test.go
+│   │   └── postgres/
+│   │       └── postgres.go            # PostgreSQL хранилище
+│   ├── service/
+│   │   ├── service.go                 # Бизнес-логика, интерфейс UrlRepo
+│   │   ├── service_test.go
+│   │   └── utils.go                   # Генерация alias через crypto/rand
+│   └── transport/http/
+│       ├── handler/
+│       │   ├── handler.go             # HTTP-хендлеры, интерфейс urlService
+│       │   ├── handler_test.go
+│       │   ├── dto.go                 # Request/Response структуры
+│       │   └── utils.go               # Вспомогательные функции хэндлера
+│       ├── middleware/
+│       │   └── logging.go             # Middleware логирования запросов
+│       └── router.go                  # Регистрация маршрутов
+├── migrations/
+│   ├── 000001_init.up.sql
+│   ├── 000001_init.down.sql
+│   └── embed.go                       # go:embed для встройки SQL в бинарник
+├── pkg/
+│   ├── logger/
+│   │   └── logger.go                  # slog с JSON-форматом
+│   └── postgres/
+│       └── postgres.go                # Инициализация pgxpool
+├── Dockerfile
+├── docker-compose.yml
+└── Makefile
+```
+
 ## Тесты
 
 ```bash
