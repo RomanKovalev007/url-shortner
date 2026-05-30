@@ -38,7 +38,7 @@ type PostgresConfig struct {
 	Port            string `env:"POSTGRES_PORT"            env-default:"5432"`
 	User            string `env:"POSTGRES_USER"            env-default:"postgres"`
 	Password        string `env:"POSTGRES_PASSWORD"        env-default:"postgres"`
-	DB              string `env:"POSTGRES_DB"              env-default:"urls"`
+	DB              string `env:"POSTGRES_DB"              env-default:"url_shortner"`
 	SSLMode         string `env:"POSTGRES_SSLMODE"         env-default:"disable"`
 	MaxConns        int32  `env:"POSTGRES_MAXCONNS"        env-default:"20"`
 	MinConns        int32  `env:"POSTGRES_MINCONNS"        env-default:"2"`
