@@ -8,16 +8,16 @@ import (
 	"github.com/RomanKovalev007/url-shortner/internal/domain"
 )
 
-type urlRepo interface {
+type UrlRepo interface {
 	SaveAlias(ctx context.Context, alias, original string) (domain.URL, error)
 	GetByAlias(ctx context.Context, alias string) (domain.URL, error)
 }
 
 type Service struct {
-	urlRepo urlRepo
+	urlRepo UrlRepo
 }
 
-func NewService(urlRepo urlRepo) *Service {
+func NewService(urlRepo UrlRepo) *Service {
 	return &Service{urlRepo: urlRepo}
 }
 
