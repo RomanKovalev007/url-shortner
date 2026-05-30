@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/RomanKovalev007/url-shortner/internal/domain"
@@ -37,6 +38,7 @@ func (h *Handler) Shorten(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.Shorten(r.Context(), req.URL)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "failed to shorten url", "error", err, "url", req.URL)
 		writeError(w, http.StatusInternalServerError, "failed to shorten url")
 		return
 	}
@@ -56,6 +58,7 @@ func (h *Handler) RedirectToOriginal(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "alias not found")
 			return
 		}
+		slog.ErrorContext(r.Context(), "failed to resolve alias", "error", err, "alias", alias)
 		writeError(w, http.StatusInternalServerError, "failed to resolve alias")
 		return
 	}
